@@ -1,0 +1,4 @@
+,Trades,Hit rate,Mean net trade (bps),Mean holding (days)
+Cointegration (static hedge),310,21.6%,-42.6,3.46
+Cointegration (rolling hedge),327,42.2%,-50.1,5.10
+Distance method,"2,820",25.0%,-18.2,5.02

@@ -1,0 +1,12 @@
+,Value
+Pair-windows selected,130
+Still cointegrated in trading window (EG p<5%),19.2%
+Median EG p-value in trading window,0.252
+Median spread SD ratio (trading / formation),0.71
+Median |spread level shift| (formation SDs),0.93
+Pairs that hit the stop level,28.5%
+Median trades per pair-window,1
+Pairs with positive net P&L,36.9%
+Mean net P&L per pair-window,-1.02%
+  ... if still cointegrated,3.65%
+  ... if no longer cointegrated,-2.13%

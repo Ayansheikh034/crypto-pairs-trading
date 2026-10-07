@@ -1,0 +1,4 @@
+,Exit at mean (share),Exit at mean (net bps),Stop-out (share),Stop-out (net bps),Window-end close (share),Window-end close (net bps)
+Cointegration (static hedge),12.6%,678.8,72.6%,-193.7,14.8%,84.8
+Cointegration (rolling hedge),34.6%,430.5,44.3%,-393.7,21.1%,-115.1
+Distance method,12.1%,831.2,68.9%,-214.2,19.0%,149.8

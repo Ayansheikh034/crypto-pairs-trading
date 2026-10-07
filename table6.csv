@@ -1,0 +1,8 @@
+,Value
+"Persistence, mean (pairs re-qualifying next window)",12.4%
+"Persistence, median",0.0%
+Median hedge-ratio change between windows,3.0%
+Pairs selected per window,2.5
+Windows with no pair,30 of 53
+"Sharpe, static hedge (net)",-0.71 (gross -0.48)
+"Sharpe, rolling hedge (net)",-0.49

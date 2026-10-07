@@ -1,0 +1,6 @@
+strategy,Total ret,CAGR,Ann. ret (mean x 365),Ann. vol,Sharpe,Max DD,VaR 5%,CVaR 5%
+Cointegration (static),-34.8%,-9.3%,-9.0%,12.6%,-0.71,-42.6%,0.6%,1.7%
+Cointegration (rolling),-36.6%,-9.9%,-8.8%,18.0%,-0.49,-43.9%,0.8%,2.4%
+Distance method,-23.7%,-6.0%,-5.9%,7.5%,-0.79,-30.4%,0.6%,1.0%
+Buy-and-hold (EW),-1.9%,-0.4%,24.5%,70.2%,0.35,-72.8%,5.7%,8.8%
+Buy-and-hold (BTC),115.4%,19.2%,29.9%,49.5%,0.60,-55.5%,3.7%,5.9%

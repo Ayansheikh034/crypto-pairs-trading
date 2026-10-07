@@ -1,0 +1,11 @@
+,Total,Per window
+"Pairs tested (EG, both orderings)","15,205",286.9
+Raw p < 5%,"1,550",29.2
+Pass BH (q=5%),225,4.2
+Pass BY (q=5%),51,1.0
+Johansen rank 0 (of BH),0,0.0
+Johansen rank 1 (of BH),187,3.5
+Johansen rank 2 (of BH),38,0.7
+Rank 1 and correct EC sign,187,3.5
+Half-life in range,187,3.5
+Selected for trading,130,2.5

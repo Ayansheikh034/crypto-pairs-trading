@@ -1,0 +1,6 @@
+,Value
+Coins tested per window,38.0
+Levels non-stationary (ADF),93.0%
+Differences stationary (ADF),100.0%
+Differences stationary (KPSS),96.7%
+Classified I(1) (all three),90.1%

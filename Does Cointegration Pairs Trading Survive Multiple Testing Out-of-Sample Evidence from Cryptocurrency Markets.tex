@@ -1,0 +1,619 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+\usepackage[margin=0.9in,columnsep=0.3in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\graphicspath{{"E:/pair trading/results_1h/plots/"}}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.08}
+\def\UrlBreaks{\do\/\do\-\do\.\do\:}
+\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=black,citecolor=black}
+\setlist{nosep,leftmargin=1.3em}
+
+% Red text = value to be filled in after the final run
+\newcommand{\TBD}[1]{\textcolor{red}{#1}}
+% Repository link
+\newcommand{\repo}{https://github.com/Ayansheikh034/crypto-pairs-trading}
+
+\title{\vspace{-1.2em}\textbf{Does Cointegration Pairs Trading Survive Multiple Testing? Out-of-Sample Evidence from Cryptocurrency Markets}}
+\author{Ayan Bashir Sheikh\\
+	\small M.Sc.\ Statistics, Department of Statistics,\\ Savitribai Phule Pune University, Pune}
+\date{}
+
+\begin{document}
+	
+	\twocolumn[{
+		\maketitle
+		\vspace{-1.5em}
+		\begin{center}
+			\begin{minipage}{0.9\textwidth}
+				\small
+				\textbf{Abstract.} This paper studies whether long-run relationships between cryptocurrencies can be found in a statistically sound way and used in a profitable pairs trading strategy. One-minute prices of the 100 most traded USDT pairs on Binance are collected from the exchange's public archive and API and aggregated to hourly bars, with stablecoins, wrapped tokens and leveraged tokens excluded. Candidate pairs are screened and tested for cointegration, the false discovery rate is controlled across the very large number of pairs, and the retained pairs are traded on a standardised spread. The strategy is evaluated out of sample with a walk-forward design, after transaction costs, using return and risk measures, and is compared with buy-and-hold and distance-method baselines. \emph{[Results to be added once the analysis is complete.]}
+				\par\smallskip
+				\textbf{Keywords:} Cointegration; Cryptocurrency; False discovery rate; High-frequency data; Johansen test; Mean reversion; Out-of-sample evaluation; Pairs trading; Statistical arbitrage.
+			\end{minipage}
+		\end{center}
+		\vspace{0.6em}
+	}]
+	
+	%==================================================================
+	\section{Introduction}
+	\label{sec:intro}
+	Cryptocurrency markets have grown from a handful of assets into a universe of thousands of tradable tokens. They trade continuously, are highly volatile, and are driven by common market-wide factors. The prices of many coins therefore move together over long horizons, even though each individual price series behaves like a random walk. This long-run co-movement is the setting in which cointegration is useful. Integrated series $y_{1,t},\dots,y_{k,t}$ of order one are cointegrated if there is a vector $\beta\neq 0$ such that
+	\begin{equation}
+		z_t=\beta^{\prime}y_t
+		\label{eq:coint}
+	\end{equation}
+	is stationary, so that deviations from the long-run relationship are corrected over time \cite{engle1987,johansen1988,johansen1991}.
+	
+	Pairs trading exploits this. A trader monitors the spread $z_t$ in \eqref{eq:coint} and, when it moves unusually far from equilibrium, goes long the relatively underpriced asset and short the relatively overpriced one, closing both positions when the spread reverts. The position is hedged, so its return depends mainly on mean reversion and not on the direction of the market. The strategy was documented for equities by Gatev et al.\ \cite{gatev2006}, developed in a cointegration framework by Vidyamurthy \cite{vidyamurthy2004}, and applied to cryptocurrencies by Leung and Nguyen \cite{leung2019}.
+	
+	With thousands of coins there are millions of possible pairs, and at conventional significance levels many will look cointegrated by chance alone. A credible study needs a screening procedure that controls the false discovery rate \cite{benjamini1995} and validation on data not used to select the pairs. Cryptocurrency prices also change substantially within a day, so daily closing prices discard information that matters for a strategy that trades spread deviations; this paper therefore works with minute-level data aggregated to intraday bars.
+	
+	\textbf{Related literature.} Cointegration and error correction models were introduced by Engle and Granger \cite{engle1987}, and the likelihood-based test for several series by Johansen \cite{johansen1988,johansen1991}. Pairs trading has been studied mainly for equities \cite{gatev2006,vidyamurthy2004}, with later work on cryptocurrency portfolios \cite{leung2019}. The same tests were applied to four Metaverse tokens in an earlier student project \cite{randrianarimanana2024}. This paper adds a systematic, multiple-testing-aware search across the whole liquid cryptocurrency market, using intraday data and an explicit out-of-sample evaluation.
+	
+	%==================================================================
+	\section{Objectives}
+	\label{sec:obj}
+	The main objective is to find out whether long-run relationships between cryptocurrencies can be identified in a statistically sound way and used in a profitable pairs trading strategy, after costs, out of sample. The specific objectives are to:
+	\begin{enumerate}
+		\item build a clean universe of liquid coins with minute-level data over a common sample period, excluding stablecoins, wrapped tokens and leveraged tokens;
+		\item test the integration order of each log-price series (ADF and KPSS);
+		\item select pairs using screening, the Engle--Granger and Johansen tests, and false-discovery-rate control;
+		\item estimate hedge ratios and the speed and half-life of mean reversion of each spread;
+		\item define entry, exit and stop-loss rules on the standardised spread;
+		\item evaluate the strategy out of sample, after transaction costs, with return and risk measures (Sharpe ratio, maximum drawdown, Value at Risk and Conditional Value at Risk);
+		\item test whether cointegrating relationships persist over time, and compare the strategy with simple baselines.
+	\end{enumerate}
+	
+	The paper addresses four research questions. Do significant cointegrating relationships remain after correcting for multiple testing across the whole market? Do pairs selected in one period stay cointegrated in a later period? Does the strategy earn positive risk-adjusted returns after costs? How do results change with the sampling frequency of the bars and with the length of the formation window?
+	
+	%==================================================================
+	\section{Data}
+	\label{sec:data}
+	
+	\subsection{Data source and sampling frequency}
+	We use minute-level market data from the Binance spot exchange \cite{binance}. Daily closing prices summarise each 24-hour period with a single observation and therefore discard the intraday variation that characterises cryptocurrency markets. We instead collect 1-minute candlestick (kline) records, which give open, high, low and close prices together with traded volume for every minute in which the market is open. Binance trades continuously, so the series have no overnight or weekend gaps. All timestamps are expressed in Coordinated Universal Time (UTC).
+	
+	\subsection{Asset universe}
+	The universe is defined once, on \TBD{selection date}, and is held fixed throughout the study. We query the exchange's instrument list and its 24-hour ticker statistics and apply the following rules:
+	\begin{enumerate}
+		\item Keep only spot pairs quoted in USDT whose status is \texttt{TRADING} and for which spot trading is enabled.
+		\item Exclude stablecoins and fiat-referenced assets (for example USDC, FDUSD, TUSD, DAI, RLUSD and EUR), because their prices are pegged and carry no meaningful cointegration signal.
+		\item Exclude wrapped and liquid-staking tokens (for example WBTC, WBETH and STETH), which duplicate the price of their underlying asset.
+		\item Exclude leveraged tokens. A base asset is classified as leveraged only if removing the suffix \texttt{UP}, \texttt{DOWN}, \texttt{BULL} or \texttt{BEAR} yields another listed base asset (for example \texttt{BTCUP} is excluded, whereas genuine assets such as \texttt{JUP} and \texttt{SYRUP} are retained).
+	\end{enumerate}
+	The remaining pairs are ranked by 24-hour quote (USDT) trading volume and the top $N = 100$ are retained. Three assets that nevertheless entered the ranking are removed before the analysis: RLUSD, which is a dollar stablecoin, and PAXG and XAUT, whose prices follow gold rather than the cryptocurrency market.
+	
+	\subsection{Collection procedure}
+	Data are collected in two stages. Historical records are downloaded from Binance's public bulk-data archive,\footnote{\url{https://data.binance.vision}} which provides one file per pair and month. Months that have not yet been archived, and the current month, are retrieved from the exchange's REST kline endpoint in batches of at most 1{,}000 candles per request. Requests are throttled below the exchange's weight limit and are retried with back-off when the server signals rate limiting. Only completed candles are stored, so the final, still-forming minute is never included.
+	
+	For each pair, collection starts at the later of the pair's first available candle and \TBD{start month}, and ends on \TBD{end date}. Timestamps are converted to UTC milliseconds; archive files from 2025 onward report microseconds and are rescaled accordingly. Duplicate timestamps are removed (keeping the last record) and each series is sorted chronologically. The variables retained are listed in Table~\ref{tab:fields}.
+	
+	\begin{table}[htbp]
+		\centering
+		\small
+		\caption{Variables stored for every 1-minute candle.}
+		\label{tab:fields}
+		\begin{tabularx}{\columnwidth}{@{}lX@{}}
+			\toprule
+			Variable & Description \\
+			\midrule
+			Open, high, low, close & Prices in USDT \\
+			Volume & Base-asset quantity traded \\
+			Quote volume & Value traded (USDT) \\
+			Number of trades & Trades executed in the minute \\
+			Taker buy volume & Buyer-initiated volume (base and quote) \\
+			\bottomrule
+		\end{tabularx}
+	\end{table}
+	
+	The data are stored in compressed Parquet files partitioned by pair and month. The collection routine is idempotent: completed months are never re-downloaded, and the current month is extended from the last stored minute, so the dataset can be updated reproducibly.
+	
+	\subsection{Missing observations, aggregation and common sample}
+	\label{sec:common}
+	Minutes with no recorded candle (for example during exchange maintenance or trading halts) are left missing; they are neither interpolated nor forward-filled at the collection stage. For each pair we compute the share of missing minutes between its first and last observation,
+	\begin{equation}
+		m_i = 1 - \frac{n_i}{T_i},
+	\end{equation}
+	where $n_i$ is the number of stored candles and $T_i$ is the number of minutes in the pair's observation span. Across the universe the median of $m_i$ is \TBD{x.xx}\% and the maximum is \TBD{x.xx}\%.
+	
+	For the empirical analysis the minute data are aggregated to \TBD{1-hour} bars: the bar's close is the last minute's close within the bar, and bars containing no trades are treated as missing. Let $B$ denote the number of bars per day ($B=24$ for hourly bars).
+	
+	Coins were listed at different dates, so the coins do not all have data over the same period. We therefore restrict the analysis to a \emph{common sample}. Among all possible start dates, we choose the one that maximises the number of coins multiplied by the number of bars, subject to at least 30 coins and at least 12 walk-forward windows. A coin is admitted if it was already listed on the start date, is still trading within seven days of the end of the sample, and has at most 2\% missing bars; gaps of up to three consecutive bars are filled with the last price. Because the cointegration tests require uninterrupted series, a coin enters a formation window only if it has complete data over that whole window.
+	
+	\subsection{Descriptive statistics}
+	Table~\ref{tab:desc} summarises the final dataset.
+	
+	\begin{table}[htbp]
+		\centering
+		\small
+		\caption{Dataset summary.}
+		\label{tab:desc}
+		\begin{tabularx}{\columnwidth}{@{}Xr@{}}
+			\toprule
+			Item & Value \\
+			\midrule
+			Coins collected & \TBD{100} \\
+			Coins in common sample & \TBD{n} \\
+			Common sample period & \TBD{start--end} \\
+			Total 1-minute observations & \TBD{n} \\
+			Bar size / bars per day $B$ & \TBD{1 h} / \TBD{24} \\
+			Walk-forward windows & \TBD{n} \\
+			Median missing minutes (\%) & \TBD{x.xx} \\
+			\bottomrule
+		\end{tabularx}
+	\end{table}
+	
+	\subsection{Limitations of the data}
+	Three features of the data should be kept in mind. First, the universe is selected using trading volume on a single recent date, so it favours assets that are liquid today; assets that were delisted or lost liquidity earlier in the sample are absent, which introduces survivorship bias. Second, the data are from the spot market only, so borrowing costs and funding rates that a short position would incur are not observed and are approximated by the transaction-cost parameter in Section~\ref{sec:rules}. Third, all prices come from one venue and are last-trade prices rather than bid--ask midpoints, so results at the minute scale may be affected by bid--ask bounce.
+	
+	%==================================================================
+	\section{Methodology}
+	\label{sec:method}
+	The methodology follows the objectives in Section~\ref{sec:obj}. Sections~\ref{sec:stationarity} to \ref{sec:vecm} select pairs (objectives 2 and 3), Section~\ref{sec:spread} models the spread (objective 4), Section~\ref{sec:rules} defines the trading rules (objective 5), and Sections~\ref{sec:perf} and \ref{sec:stability} evaluate performance, risk, stability and baselines (objectives 6 and 7). The parameter values used are collected in Table~\ref{tab:params}.
+	
+	\subsection{Set-up and walk-forward design}
+	\label{sec:walk}
+	Let $p_{i,t}=\ln P_{i,t}$ be the log closing price of coin $i$ in bar $t$, for $i=1,\dots,N$, and let $B$ be the number of bars per day. To avoid look-ahead bias, the analysis is walk-forward. In each step, all pair selection and parameter estimation use only a \emph{formation window} of $L$ days ($LB$ bars). The selected pairs are then traded over the next $M$ days ($MB$ bars), the \emph{trading window}, without re-estimation of the static parameters, and the windows are rolled forward by $M$ days, so that trading windows do not overlap. The values of $L$ and $M$ are chosen before looking at trading results, and results for other values are reported as a sensitivity analysis. All coins used are those in the common sample of Section~\ref{sec:common}. If a coin stops trading inside a trading window, its price is held at the last observed value, so it contributes zero return thereafter.
+	
+	\begin{table}[htbp]
+		\centering
+		\small
+		\caption{Parameter settings (default values).}
+		\label{tab:params}
+		\begin{tabularx}{\columnwidth}{@{}Xr@{}}
+			\toprule
+			Parameter & Value \\
+			\midrule
+			Formation window $L$ & 180 days \\
+			Trading window $M$ & 30 days \\
+			Correlation screen $\rho_{\min}$ & 0.6 \\
+			Maximum pairs tested per window & 3{,}000 \\
+			Significance level $\alpha$ & 5\% \\
+			False discovery rate $q$ & 5\% \\
+			Half-life range $[h_{\min},h_{\max}]$ & $[0.25,\,10]$ days \\
+			Entry / exit / stop $(c_{\text{in}},\,c_{\text{out}},\,c_{\text{stop}})$ & $(2,\,0,\,4)$ \\
+			Cost $c$ per unit traded & 0.10\% \\
+			Pairs traded per window (maximum) & 20 \\
+			Rolling window $R$ & 60 days \\
+			ADF maximum lag (stationarity) & 24 bars \\
+			ADF lags (Engle--Granger residuals) & 4 \\
+			Lagged differences in VECM & 1 \\
+			\bottomrule
+		\end{tabularx}
+	\end{table}
+	
+	\subsection{Stationarity tests}
+	\label{sec:stationarity}
+	For each coin and formation window, the augmented Dickey--Fuller (ADF) test \cite{dickey1979} is applied to $p_{i,t}$ and to $\Delta p_{i,t}$, with a constant and the lag length chosen by the Akaike information criterion (up to 24 bars). The KPSS test \cite{kpss1992}, whose null hypothesis is stationarity, is applied to $\Delta p_{i,t}$ as a check. A coin is treated as integrated of order one, $I(1)$, if the ADF test does not reject a unit root in levels, rejects it in first differences, and KPSS does not reject stationarity of the first differences, all at level $\alpha$. Only $I(1)$ coins enter the pair search, since cointegration is defined for such series.
+	
+	\subsection{Candidate pairs}
+	\label{sec:pairs}
+	There are $N(N-1)/2$ possible pairs, so the search is staged. First, a cheap screen keeps a pair only if the correlation of the bar-to-bar log returns over the formation window is at least $\rho_{\min}$, and at most 3{,}000 pairs with the highest correlation are kept; this removes most pairs that cannot be related. Second, the Engle--Granger test \cite{engle1987} is run on the remaining pairs. For a pair $(i,j)$, the regression
+	\begin{equation}
+		p_{i,t}=\alpha+\beta\,p_{j,t}+u_t
+		\label{eq:eg}
+	\end{equation}
+	is fitted by least squares, and the ADF test (without constant, with four lagged differences) is applied to the residuals $\hat u_t$ using the critical values for estimated residuals \cite{mackinnon1994}. Because the result depends on which coin is on the left, both orderings are tested, the smaller $p$-value is kept, and it is doubled (and capped at 1) to account for the two tests. The ordering with the smaller $p$-value defines the dependent coin $i$ and the regressor $j$ for the rest of the analysis.
+	
+	\subsection{False discovery control}
+	\label{sec:fdr}
+	Let $m$ be the number of pairs tested and $p_{(1)}\le\dots\le p_{(m)}$ the ordered $p$-values. The Benjamini--Hochberg procedure \cite{benjamini1995} rejects the $k$ smallest, where $k$ is the largest index with
+	\begin{equation}
+		p_{(k)}\le \frac{k}{m}\,q ,
+		\label{eq:bh}
+	\end{equation}
+	and $q$ is the target false discovery rate. Pairs share coins, so the tests are dependent. The Benjamini--Yekutieli correction \cite{benjamini2001}, which is valid under any dependence, is computed as a robustness check, and the number of pairs passing it is reported. The pairs that survive the Benjamini--Hochberg procedure are the \emph{candidate set}.
+	
+	\subsection{Johansen confirmation and VECM}
+	\label{sec:vecm}
+	Each candidate pair is confirmed with the Johansen procedure \cite{johansen1988,johansen1991}. For $y_t=(p_{i,t},p_{j,t})^{\prime}$, a vector autoregression in levels is written in error-correction form,
+	\begin{equation}
+		\Delta y_t=\mu+\Pi y_{t-1}+\sum_{l=1}^{K-1}\Gamma_l\Delta y_{t-l}+\varepsilon_t,\quad \Pi=\alpha\beta^{\prime},
+		\label{eq:vecm}
+	\end{equation}
+	with $K-1=1$ lagged difference and a constant. The cointegration rank $r$ is chosen sequentially with the trace statistic at the 5\% level, and the numbers of pairs with $r=0$, $r=1$ and $r=2$ are reported. A pair is kept only if $r=1$. A rank equal to the number of series would mean the series are stationary and contradicts the $I(1)$ screen, so such pairs are dropped.
+	
+	The cointegrating vector is normalised as $\beta=(1,-\hat b)^{\prime}$, so that the spread is $z_t=p_{i,t}-\hat b\,p_{j,t}$ and $\hat b$ is the hedge ratio. Writing $\alpha=(\alpha_i,\alpha_j)^{\prime}$, the spread obeys $\Delta z_t=\lambda z_{t-1}+\cdots$ with adjustment speed $\lambda=\alpha_i-\hat b\,\alpha_j$. A pair is kept only if $\hat b>0$ and $\lambda<0$, so that the spread is pulled back toward equilibrium. This addresses the cases in which a cointegrating relationship exists but the spread does not revert in the expected direction.
+	
+	\subsection{Spread and mean reversion}
+	\label{sec:spread}
+	For a retained pair, the spread is $z_t=p_{i,t}-\hat b\,p_{j,t}$, with $\hat b$ from the Johansen estimate on the formation window. Mean reversion is described by the autoregression
+	\begin{equation}
+		z_t=a+\phi\,z_{t-1}+\eta_t ,
+		\label{eq:ar1}
+	\end{equation}
+	which is the discrete form of an Ornstein--Uhlenbeck process. For $0<\phi<1$ the half-life of a deviation is $-\ln 2/\ln\phi$ bars, or
+	\begin{equation}
+		h=\frac{-\ln 2}{B\,\ln\phi}\quad\text{days}.
+		\label{eq:hl}
+	\end{equation}
+	Pairs are kept only if $h$ lies between a minimum $h_{\min}$ and a maximum $h_{\max}$, so that the spread reverts fast enough to trade but not so fast that costs consume the gains. In each window, at most 20 pairs with the smallest Engle--Granger $p$-values are traded. The standardised spread is
+	\begin{equation}
+		s_t=\frac{z_t-\hat\mu_z}{\hat\sigma_z},
+		\label{eq:z}
+	\end{equation}
+	where $\hat\mu_z$ and $\hat\sigma_z$ are the mean and standard deviation of $z_t$ over the formation window and are held fixed in the trading window (the \emph{static} version). In the \emph{rolling} version, $\hat b$, $\hat\mu_z$ and $\hat\sigma_z$ are re-estimated at every bar from the trailing $R$ days: $\hat b$ is the ordinary least squares slope of $p_{i,t}$ on $p_{j,t}$ and the mean and standard deviation are those of the corresponding spread.
+	
+	\subsection{Trading rules}
+	\label{sec:rules}
+	Let $\pi_t\in\{-1,0,+1\}$ be the position in the spread after the close of bar $t$, with $+1$ meaning long the spread (buy coin $i$, sell coin $j$). For a pair with hedge ratio $\hat b>0$, the rules are:
+	\begin{itemize}
+		\item \textbf{Enter long} when $-c_{\text{stop}}<s_t\le -c_{\text{in}}$; \textbf{enter short} (sell $i$, buy $j$) when $c_{\text{in}}\le s_t< c_{\text{stop}}$.
+		\item \textbf{Exit} when $s_t$ crosses $c_{\text{out}}=0$, which means the spread has returned to equilibrium.
+		\item \textbf{Stop out} when $|s_t|\ge c_{\text{stop}}$. No new position is opened until $|s_t|<c_{\text{stop}}$ again and the entry condition holds.
+	\end{itemize}
+	Positions are weighted so that the two legs have gross exposure of one, with weights $w_i=1/(1+\hat b)$ and $w_j=-\hat b/(1+\hat b)$ (reversed for a short spread). A signal observed at the close of bar $t$ is executed at that close and earns the return of bar $t+1$, so no information from the future is used. The net return of a pair is
+	\begin{equation}
+		r^{\text{pair}}_{t+1}=\pi_t\,\frac{\Delta p_{i,t+1}-\hat b\,\Delta p_{j,t+1}}{1+\hat b}-c\,\lvert\pi_t-\pi_{t-1}\rvert ,
+		\label{eq:pairret}
+	\end{equation}
+	where log-price changes are used as an approximation to returns and $c$ is a proportional cost (exchange fees plus slippage) on every unit of value traded. All positions are closed at the end of each trading window, and the closing cost is charged. Starting values are $c_{\text{in}}=2$, $c_{\text{out}}=0$, $c_{\text{stop}}=4$ and $c=0.10\%$, with sensitivity analysis around them. The data contain spot prices only, so every coin is treated as available for the short leg; borrowing and funding costs are not modelled separately and are absorbed in $c$.
+	
+	\subsection{Performance and risk}
+	\label{sec:perf}
+	The returns of all pairs selected for a window are averaged with equal weights in each bar, so capital reserved for a pair without an open position earns zero. Bar returns are compounded to daily returns $r_t$. Performance is reported by the annualised mean return $365\,\bar r$, the annualised volatility $\sqrt{365}\,s_r$, the Sharpe ratio $\sqrt{365}\,\bar r/s_r$ (crypto trades every day, and the risk-free rate is taken as zero), the maximum drawdown, the hit rate of closed trades, the mean net return per trade, the mean holding time and the number of trades. Risk is measured by the historical Value at Risk and Conditional Value at Risk at level $\alpha$,
+	\begin{align}
+		\mathrm{VaR}_\alpha &=-q_\alpha(r_t),\label{eq:var}\\
+		\mathrm{CVaR}_\alpha &=-\mathbb{E}\,[\,r_t\mid r_t\le q_\alpha(r_t)\,],\label{eq:cvar}
+	\end{align}
+	where $q_\alpha$ is the $\alpha$-quantile of daily returns, and $\alpha=5\%$ is used by default. All results are out of sample, because each trading window uses only parameters estimated on the preceding formation window.
+	
+	\subsection{Stability, baselines and sensitivity}
+	\label{sec:stability}
+	Stability is measured by the \emph{persistence rate}: the share of pairs selected in one window that are selected again in the following window. For pairs that persist, the relative change of the hedge ratio between windows is also reported. Static hedge ratios, fixed within a window, are compared with ratios re-estimated on a rolling basis. Three baselines are used: an equal-weighted buy-and-hold portfolio of the eligible coins, rebalanced at the start of each trading window; buy-and-hold in Bitcoin; and the distance method of Gatev et al.\ \cite{gatev2006}, which pairs coins with the smallest sum of squared differences between normalised formation-window prices and trades the 20 closest pairs with the same entry, exit and stop rules and unit hedge ratio. Sensitivity analysis varies the bar size (for example 1 hour, 15 minutes and 5 minutes), the formation window length and the trading thresholds.
+	
+	\subsection{Implementation}
+	\label{sec:impl}
+	All steps are implemented in Python, using the \texttt{statsmodels} library \cite{seabold2010} for the ADF, KPSS, Engle--Granger and Johansen tests and the VECM. The procedure involves no random numbers and is therefore deterministic, and software versions are recorded so that the results can be reproduced. The code is available in the repository (\url{\repo}).
+	
+%==================================================================
+% Replace the whole "\section{Results}" block in main.tex with this file.
+% Numbers are from the PILOT run (38 coins, data still downloading).
+% Update every figure after the final run (python analysis_minute.py --refresh).
+%==================================================================
+
+
+
+\section{Results}
+\label{sec:results}
+\TBD{Pilot run: 38 coins, 1-hour bars, 53 walk-forward windows. All figures must be updated after the final run. Check the window dates quoted below against \texttt{window\_returns.csv}.}
+
+The common sample runs from 8 November 2021 to 7 October 2026 and contains 38 coins. With $L=180$ and $M=30$ days this gives 53 walk-forward windows, numbered 1 to 53 in time order. The first trading window starts on 7 May 2022 and the last ends in mid-September 2026, so the out-of-sample period covers 1{,}590 days. Unless stated otherwise, all performance figures are out of sample and net of a cost of 0.10\% per unit of notional traded.
+
+\subsection{Stationarity }
+Table~\ref{tab:res1} summarises the integration-order tests, averaged over formation windows. In 93.0\% of coin-windows the ADF test does not reject a unit root in log prices, and in 100\% of coin-windows it rejects a unit root in first differences. The KPSS test does not reject stationarity of the differences in 96.7\% of cases. A coin is classified as $I(1)$ in 90.1\% of coin-windows, so about 34 of the 38 coins enter the pair search in a typical window. A few windows have far fewer $I(1)$ coins (13 in the 7th window and 20 in the 21st), which reduces the number of pairs that can be tested there.
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Stationarity of log prices.}
+	\label{tab:res1}
+	\begin{tabularx}{\columnwidth}{@{}Xr@{}}
+		\toprule
+		& Value \\
+		\midrule
+		Coins tested per window & 38 \\
+		Levels non-stationary (ADF) & 93.0\% \\
+		Differences stationary (ADF) & 100.0\% \\
+		Differences stationary (KPSS) & 96.7\% \\
+		Classified $I(1)$ (all three) & 90.1\% \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+\subsection{Cointegrated pairs}
+Table~\ref{tab:res2} follows the pairs through each stage. Candidates are $I(1)$ coin pairs whose first differences have a correlation of at least 0.6. Each candidate is tested with the Engle--Granger procedure in both orderings, and its $p$-value is twice the smaller of the two. Across the 53 windows, 15{,}205 candidate pairs were tested, about 287 per window. Of these, 1{,}550 (10.2\%) have a raw $p$-value below 5\%. Because taking twice the smaller $p$-value makes each test conservative, a set of non-cointegrated pairs would produce at most 5\%, so the data contain some signal. The comparison is only a rough guide, since candidates are pre-selected by correlation and share coins, and the signal is much weaker than the raw count suggests.
+
+The false discovery control removes most of it. Only 225 pairs (1.5\% of those tested) pass the Benjamini--Hochberg procedure at $q=5\%$, about 4.2 per window, and only 51 (0.3\%) pass the more conservative Benjamini--Yekutieli correction. The Johansen test then agrees with the Engle--Granger result for the 225 BH pairs: none has rank 0, 187 have rank 1 and 38 have rank 2. The 38 rank-2 pairs are dropped because a full-rank system contradicts the $I(1)$ screen. All 187 rank-1 pairs have a positive hedge ratio, the correct error-correction sign and a half-life inside the filter range. At most 20 pairs are traded per window, which leaves 130 selected pairs, or 2.5 per window.
+
+Discoveries are unevenly spread over time. Thirty of the 53 windows have no selected pair. Two windows, the 29th and the 38th, contain 32 and 72 BH pairs, together 46\% of all 225. The 29th has its formation period from late February to August 2024 and the 38th from late November 2024 to May 2025. The 20-pair cap binds in exactly these two windows and removes 57 of the 187 eligible pairs. This pattern suggests that cointegration appears in particular market episodes and is not a stable property of a fixed set of pairs. \TBD{Rerun without the cap and report the effect.}
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Cointegration funnel .}
+	\label{tab:res2}
+	\begin{tabularx}{\columnwidth}{@{}Xrr@{}}
+		\toprule
+		& Total & Per window \\
+		\midrule
+		Pairs tested (EG, both orderings) & 15{,}205 & 286.9 \\
+		Raw $p<5\%$ & 1{,}550 & 29.2 \\
+		Pass BH ($q=5\%$) & 225 & 4.2 \\
+		Pass BY ($q=5\%$) & 51 & 1.0 \\
+		Johansen rank 0 (of BH) & 0 & 0.0 \\
+		Johansen rank 1 (of BH) & 187 & 3.5 \\
+		Johansen rank 2 (of BH) & 38 & 0.7 \\
+		Rank 1, correct EC sign & 187 & 3.5 \\
+		Half-life in range & 187 & 3.5 \\
+		Selected for trading & 130 & 2.5 \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+\subsection{Mean reversion }
+Table~\ref{tab:res3} describes the 187 pairs with rank 1 and the correct sign. The median half-life of the spread is 2.70 days (interquartile range 2.23 to 3.27 days), well inside the 0.25 to 10 day filter. The median hedge ratio is 0.78, so the second coin usually carries a somewhat smaller weight than the first. A half-life of two to three days is roughly 50 to 80 hourly bars, short compared with the 30-day trading window (about ten half-lives). A spread that kept its formation behaviour would therefore have time to complete several cycles. In practice the trading windows contain few signals: the median selected pair makes a single trade per window (Table~\ref{tab:res8}). These half-lives are in-sample estimates. \TBD{Report the out-of-sample half-life (column \texttt{half\_life\_oos\_days}).}
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Mean reversion of spreads .}
+	\label{tab:res3}
+	\begin{tabularx}{\columnwidth}{@{}Xr@{}}
+		\toprule
+		& Value \\
+		\midrule
+		Pairs with rank 1 and correct sign & 187 \\
+		Median half-life (days) & 2.70 \\
+		Half-life IQR (days) & 2.23--3.27 \\
+		Share within filter & 100.0\% \\
+		Median hedge ratio & 0.78 \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+\subsection{Trading activity and performance}
+\textbf{Trading activity.} Table~\ref{tab:res4} reports the trades produced by the rules in Section~\ref{sec:rules}. The static cointegration strategy makes 310 trades, of which 21.6\% are profitable, with a mean net result of $-42.6$ basis points per trade and a mean holding time of 3.46 days. The rolling-hedge variant makes a similar number of trades (327), wins more often (42.2\%), loses $-50.1$ bps per trade and holds for 5.10 days. The distance method trades most (2{,}820 trades) and loses least per trade ($-18.2$ bps).
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Trading activity .}
+	\label{tab:res4}
+	\begin{tabularx}{\columnwidth}{@{}Xrrrr@{}}
+		\toprule
+		& Trades & Hit rate & Net (bps) & Hold (d) \\
+		\midrule
+		Coint.\ (static) & 310 & 21.6\% & $-42.6$ & 3.46 \\
+		Coint.\ (rolling) & 327 & 42.2\% & $-50.1$ & 5.10 \\
+		Distance method & 2{,}820 & 25.0\% & $-18.2$ & 5.02 \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+\textbf{How trades end.} Table~\ref{tab:res7} shows why the average trade loses. For the static strategy, only 12.6\% of trades end at the mean, and they earn $+679$ bps. The 72.6\% that are stopped out lose $194$ bps on average, and the remaining 14.8\% are closed at the end of the window for $+85$ bps. These three groups add up to the mean of $-42.6$ bps. The stop-outs are concentrated in few pairs. The 310 trades come from 130 pair-windows, and only 37 of them (28.5\%) ever reach the stop level, yet stop-outs account for 225 trades. These pairs are therefore stopped out at least six times each on average. This is what one expects when a spread that has broken away from its formation level hovers around the stop and the rules re-enter each time it falls back below it. The rolling hedge turns more trades into mean exits (34.6\%) and fewer into stop-outs (44.3\%), but its stop-outs are more costly ($-394$ bps), consistent with the hedge ratio and mean following the spread as it drifts. \TBD{Report the re-entry diagnostic: trades per pair-window among the 37 pairs that touch the stop.}
+
+\begin{table*}[htbp]
+	\centering
+	\small
+	\caption{How trades end. Share of trades and mean net result in basis points.}
+	\label{tab:res7}
+	\begin{tabular}{@{}lrrrrrr@{}}
+		\toprule
+		& \multicolumn{2}{c}{Exit at mean} & \multicolumn{2}{c}{Stop-out} & \multicolumn{2}{c}{Window-end close} \\
+		\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+		& Share & bps & Share & bps & Share & bps \\
+		\midrule
+		Cointegration (static) & 12.6\% & 678.8 & 72.6\% & $-193.7$ & 14.8\% & 84.8 \\
+		Cointegration (rolling) & 34.6\% & 430.5 & 44.3\% & $-393.7$ & 21.1\% & $-115.1$ \\
+		Distance method & 12.1\% & 831.2 & 68.9\% & $-214.2$ & 19.0\% & 149.8 \\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+\textbf{Performance.} Table~\ref{tab:res5} gives the out-of-sample performance after costs. Both cointegration strategies lose money. The static version has a total return of $-34.8\%$ (CAGR $-9.3\%$) and the rolling version $-36.6\%$ ($-9.9\%$), each with a maximum drawdown above 40\%. The distance method also loses ($-23.7\%$), with lower volatility. The static strategy's Sharpe ratio is $-0.48$ before costs and $-0.71$ after them, so costs make the result worse but do not explain it: the strategy is unprofitable even with zero costs. Sharpe ratios of strategies with negative mean returns should not be used to rank them, because higher volatility makes a negative ratio look better. This is why the rolling hedge has the higher Sharpe ratio ($-0.49$) but the lower total return. The two hedge choices are therefore about equally poor.
+
+The passive baselines have positive Sharpe ratios (0.35 for the equal-weighted portfolio and 0.60 for Bitcoin), but with much larger risk: annualised volatility of 70.2\% and 49.5\%, maximum drawdowns of 72.8\% and 55.5\%, and 5\% Conditional Value at Risk of 8.8\% and 5.9\% per day. The equal-weighted portfolio shows how misleading mean-based ratios can be, since a Sharpe ratio of 0.35 accompanies a total return of $-1.9\%$. The pairs strategies are far less volatile (annualised volatility 7.5\% to 18.0\%, CVaR 1.0\% to 2.4\%), as expected for hedged positions, but the lower risk comes with negative returns.
+
+The loss is concentrated in a few windows. The five worst windows for the static strategy (returns of $-18.0\%$, $-10.8\%$, $-9.6\%$, $-7.0\%$ and $-7.0\%$) compound to about $-43\%$, which is more than the whole-sample loss, and the other 48 windows together compound to about $+14\%$. This describes where the loss came from. It does not show that the strategy works elsewhere, because the worst windows are identified after the fact. \TBD{Recompute these two figures from \texttt{window\_returns.csv}.}
+
+\begin{table*}[htbp]
+	\centering
+	\small
+	\caption{Out-of-sample performance, net of costs. Sharpe ratio, VaR and CVaR use daily returns; the Sharpe ratio is annualised with $\sqrt{365}$.}
+	\label{tab:res5}
+	\begin{tabular}{@{}lrrrrrrr@{}}
+		\toprule
+		& Total ret. & CAGR & Ann. vol. & Sharpe & Max DD & VaR 5\% & CVaR 5\% \\
+		\midrule
+		Cointegration (static) & $-34.8\%$ & $-9.3\%$ & 12.6\% & $-0.71$ & $-42.6\%$ & 0.6\% & 1.7\% \\
+		Cointegration (rolling) & $-36.6\%$ & $-9.9\%$ & 18.0\% & $-0.49$ & $-43.9\%$ & 0.8\% & 2.4\% \\
+		Distance method & $-23.7\%$ & $-6.0\%$ & 7.5\% & $-0.79$ & $-30.4\%$ & 0.6\% & 1.0\% \\
+		Buy-and-hold (equal-weighted) & $-1.9\%$ & $-0.4\%$ & 70.2\% & 0.35 & $-72.8\%$ & 5.7\% & 8.8\% \\
+		Buy-and-hold (BTC) & 115.4\% & 19.2\% & 49.5\% & 0.60 & $-55.5\%$ & 3.7\% & 5.9\% \\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+\subsection{Stability and out-of-sample behaviour}
+Table~\ref{tab:res6} shows that pairs rarely stay selected. On average only 12.4\% of the pairs selected in one window are selected again in the next, and the median is 0\%, because most windows have no persisting pair. For the pairs that do persist, the hedge ratio changes little (median relative change 3.0\%), so the relationship, when it survives, is estimated stably. The instability lies in whether the pair stays cointegrated at all.
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Stability of selected pairs }
+	\label{tab:res6}
+	\begin{tabularx}{\columnwidth}{@{}Xr@{}}
+		\toprule
+		& Value \\
+		\midrule
+		Persistence, mean & 12.4\% \\
+		Persistence, median & 0.0\% \\
+		Median hedge-ratio change between windows & 3.0\% \\
+		Pairs selected per window & 2.5 \\
+		Windows with no pair & 30 of 53 \\
+		Sharpe, static hedge (net / gross) & $-0.71$ / $-0.48$ \\
+		Sharpe, rolling hedge (net) & $-0.49$ \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+Table~\ref{tab:res8} compares the 130 selected pair-windows in the 30 days after selection with their formation window. Only 19.2\% are still cointegrated at the 5\% level in the trading window (median $p$-value 0.25). This is above the 5\% expected without cointegration, so the relationship has some persistence, but not enough to rely on. Spreads are calmer out of sample (median ratio of trading to formation standard deviation 0.71) and their level shifts by a median of 0.93 formation standard deviations. A calmer spread reaches the entry threshold less often, which fits the median of one trade per pair-window, and a shifted spread is more likely to cross the stop. Mean net P\&L is $-1.02\%$ per pair-window overall, $+3.65\%$ for pairs that are still cointegrated and $-2.13\%$ for those that are not. Mean reversion therefore pays while the relationship holds, and the losses come from relationships that do not. The split uses information from the trading window and is not a trading rule.
+
+This answers the second research question: pairs found in one formation window mostly do not remain cointegrated afterwards, which is consistent with the negative out-of-sample returns. The re-test re-estimates the hedge ratio and intercept on the trading window, so ``still cointegrated'' does not mean tradable with the formation parameters.
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Out-of-sample behaviour of selected pairs .}
+	\label{tab:res8}
+	\begin{tabularx}{\columnwidth}{@{}Xr@{}}
+		\toprule
+		& Value \\
+		\midrule
+		Pair-windows selected & 130 \\
+		Still cointegrated in trading window (EG $p<5\%$) & 19.2\% \\
+		Median EG $p$-value in trading window & 0.252 \\
+		Median spread SD ratio (trading / formation) & 0.71 \\
+		Median $|$spread level shift$|$ (formation SDs) & 0.93 \\
+		Pairs that hit the stop level & 28.5\% \\
+		Median trades per pair-window & 1 \\
+		Pairs with positive net P\&L & 36.9\% \\
+		Mean net P\&L per pair-window & $-1.02\%$ \\
+		\quad if still cointegrated & $+3.65\%$ \\
+		\quad if no longer cointegrated & $-2.13\%$ \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+\textbf{Which pairs.} Table~\ref{tab:res9} lists the pairs selected most often. No pair is selected in more than four of the 53 windows (7.5\%), and AXS, DOT and NEAR each appear in four of the fifteen most frequent pairs. Per-pair shares and P\&L rest on two to four windows and are noisy. A pair can earn money without staying cointegrated (DOGE/LTC) and can lose heavily with a strong in-sample statistic (DOT/TRB). Figure~\ref{fig:persist} shows the persistence ranking and Figure~\ref{fig:timeline} shows when each pair was selected. Gaps and short runs dominate. Only GTC/NMR and DOT/NMR stay cointegrated in all their windows, and both involve NMR, a small coin for which the 0.10\% cost assumption is probably optimistic. \TBD{Check coin liquidity and whether these coins can be shorted (\texttt{--shortable}).}
+
+\begin{table}[htbp]
+	\centering
+	\small
+	\caption{Pairs selected in the most windows (ties by smallest EG $p$-value).}
+	\label{tab:res9}
+	\begin{tabularx}{\columnwidth}{@{}Xrrrr@{}}
+		\toprule
+		Pair & Windows & Half-life (d) & Still coint. & Net P\&L \\
+		\midrule
+		DOGE / LTC & 4 & 2.65 & 0\% & 4.44\% \\
+		AXS / XRP & 3 & 2.39 & 0\% & $-6.23\%$ \\
+		GTC / NMR & 3 & 1.92 & 100\% & 2.85\% \\
+		AVAX / SHIB & 3 & 2.03 & 33\% & 0.00\% \\
+		AXS / HBAR & 3 & 2.64 & 0\% & 0.70\% \\
+		AXS / FIL & 3 & 2.00 & 0\% & 2.22\% \\
+		DOT / TRB & 2 & 1.75 & 0\% & $-11.70\%$ \\
+		DOT / SHIB & 2 & 2.01 & 0\% & $-4.55\%$ \\
+		DOT / NEAR & 2 & 2.35 & 0\% & 0.75\% \\
+		DOGE / INJ & 2 & 1.85 & 50\% & 2.19\% \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{00_overview_persistence.png}
+	\caption{Pairs selected in the most walk-forward windows. Bar colour shows the share of those windows in which the pair was still cointegrated in the trading window (green high, red low).}
+	\label{fig:persist}
+\end{figure}
+
+\begin{figure*}[H]
+	\centering
+	\includegraphics[width=\textwidth]{01_selection_timeline.png}
+	\caption{Selection history of the fifteen most frequent pairs. Green: selected and still cointegrated in the trading window. Orange: selected but no longer cointegrated. White: not selected.}
+	\label{fig:timeline}
+\end{figure*}
+
+
+
+
+
+\textbf{Three examples.} Figures~\ref{fig:nmrgtc} to~\ref{fig:axshbar} show three pair-windows chosen to illustrate distinct behaviours. They are not a representative sample; Table~\ref{tab:res8} is. In each figure the $z$-score uses the formation mean and standard deviation, which are also the trading parameters. NMR/GTC (trading window starting April 2025) is still cointegrated out of sample ($p=0.026$), yet the spread jumps to about two to three formation standard deviations above its formation mean and stays there. The strategy gains on the first round trip, then opens a short at $z\approx2.4$ that is still open at the window end. SHIB/AVAX (June 2025) is strongly cointegrated out of sample ($p<0.001$), but its spread is far calmer than in formation (standard deviation ratio 0.38) and never reaches the entry threshold, so there are no trades and no profit. AXS/HBAR (July 2022) has a spread that stays above its formation mean for the whole window (level shift $+1.30$ standard deviations). It opens one short at $z\approx2.2$ that never reverts and is closed at the window end.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{pair_NMR_GTC.png}
+	\caption{NMR/GTC (trading window starting April 2025): prices (top) and spread $z$-score with trades (bottom). The pair is cointegrated out of sample, but the spread level has shifted.}
+	\label{fig:nmrgtc}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{pair_SHIB_AVAX.png}
+	\caption{SHIB/AVAX (June 2025): cointegrated out of sample, but the spread is too calm to trigger entries.}
+	\label{fig:shibavax}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{pair_AXS_HBAR.png}
+	\caption{AXS/HBAR (July 2022): the spread stays above its formation mean, so the short never reverts and is closed at the end of the window.}
+	\label{fig:axshbar}
+\end{figure}
+
+\subsection{Summary of findings}
+Cointegrated pairs exist, but they are rare once multiple testing is controlled (1.5\% of tested pairs pass BH and 0.3\% pass BY), they concentrate in a few windows (two windows hold 46\% of the BH discoveries), and they seldom persist: only 19.2\% remain cointegrated in the following 30 days and on average 12.4\% are selected again. Selected pairs mean-revert with a half-life of about 2.7 days in sample, yet traded out of sample they lose money, before and after costs (static hedge $-34.8\%$, rolling hedge $-36.6\%$, distance method $-23.7\%$, against $-1.9\%$ for the equal-weighted portfolio and $+115.4\%$ for Bitcoin). The main channel is trade outcomes: 72.6\% of static trades are stopped out, while the few that revert earn large gains. The results do not support the claim that screening with false discovery control, on its own, produces a profitable pairs trading strategy in this universe and period. The pattern is the same for the static hedge, the rolling hedge and the distance baseline.
+
+\textbf{Limitations.} The universe is 38 coins that are in today's top 100 by volume and have traded since November 2021, which introduces survivorship bias. Windows without a selected pair earn zero, which lowers measured volatility. The cost of 0.10\% per unit traded ignores spreads and market impact in the smaller coins, and spot markets do not allow shorting without borrowing. The stop rule has no cool-down after a stop-out. \TBD{Add the pre-specified robustness runs (formation 60 and 90 days, no pair cap, 5-minute bars) and report all of them, including any variant of the stop rule that was added after seeing these results.}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	%==================================================================
+	\section{Limitations and Next Steps}
+	\label{sec:limits}
+	Several simplifications should be addressed in later work. First, the universe is ranked by volume on a single date, which introduces survivorship bias; a point-in-time ranking by monthly volume would remove it. Second, the study uses spot data only, so funding rates, borrowing costs and the availability of short positions are not modelled explicitly. Third, the Johansen step is applied to pairs only; extending it to baskets of three or more coins is a natural generalisation. Fourth, the exit rules do not include a maximum holding time tied to the half-life. Fifth, results are not yet broken down by coin liquidity or market regime. Finally, all prices come from one exchange and are last-trade prices, so execution at the minute scale may differ from the simulated fills.
+	
+	%==================================================================
+	\begingroup
+	\scriptsize\raggedright\sloppy
+	\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\labelsep}{0.3em}
+	\begin{thebibliography}{99}
+		
+		\bibitem{benjamini1995} Benjamini, Y., \& Hochberg, Y. (1995). Controlling the false discovery rate: A practical and powerful approach to multiple testing. \emph{Journal of the Royal Statistical Society: Series B}, 57(1), 289--300.
+		
+		\bibitem{benjamini2001} Benjamini, Y., \& Yekutieli, D. (2001). The control of the false discovery rate in multiple testing under dependency. \emph{The Annals of Statistics}, 29(4), 1165--1188.
+		
+		\bibitem{binance} Binance. \emph{Binance Spot API documentation and public market data}. \url{https://developers.binance.com/docs/binance-spot-api-docs}.
+		
+		\bibitem{dickey1979} Dickey, D.\,A., \& Fuller, W.\,A. (1979). Distribution of the estimators for autoregressive time series with a unit root. \emph{Journal of the American Statistical Association}, 74(366), 427--431.
+		
+		\bibitem{engle1987} Engle, R.\,F., \& Granger, C.\,W.\,J. (1987). Co-integration and error correction: Representation, estimation, and testing. \emph{Econometrica}, 55(2), 251--276.
+		
+		\bibitem{gatev2006} Gatev, E., Goetzmann, W.\,N., \& Rouwenhorst, K.\,G. (2006). Pairs trading: Performance of a relative-value arbitrage rule. \emph{The Review of Financial Studies}, 19(3), 797--827.
+		
+		\bibitem{johansen1988} Johansen, S. (1988). Statistical analysis of cointegration vectors. \emph{Journal of Economic Dynamics and Control}, 12(2--3), 231--254.
+		
+		\bibitem{johansen1991} Johansen, S. (1991). Estimation and hypothesis testing of cointegration vectors in Gaussian vector autoregressive models. \emph{Econometrica}, 59(6), 1551--1580.
+		
+		\bibitem{kpss1992} Kwiatkowski, D., Phillips, P.\,C.\,B., Schmidt, P., \& Shin, Y. (1992). Testing the null hypothesis of stationarity against the alternative of a unit root. \emph{Journal of Econometrics}, 54(1--3), 159--178.
+		
+		\bibitem{leung2019} Leung, T., \& Nguyen, H. (2019). Constructing cointegrated cryptocurrency portfolios for statistical arbitrage. \emph{Studies in Economics and Finance}.
+		
+		\bibitem{mackinnon1994} MacKinnon, J.\,G. (1994). Approximate asymptotic distribution functions for unit-root and cointegration tests. \emph{Journal of Business \& Economic Statistics}, 12(2), 167--176.
+		
+		\bibitem{randrianarimanana2024} Randrianarimanana, J.\,H.\,A., \& Sheikh, A.\,B. (2024). \emph{Exploring the Metaverse: A Statistical Study on Cryptocurrencies and Virtual Reality}. Unpublished MSc project report (ST-402), Department of Statistics, Savitribai Phule Pune University. Available at \url{https://github.com/Ayansheikh034/-A-Statistical-Study-on-Cryptocurrencies-and-Virtual-Reality}.
+		
+		\bibitem{seabold2010} Seabold, S., \& Perktold, J. (2010). statsmodels: Econometric and statistical modeling with Python. In \emph{Proceedings of the 9th Python in Science Conference}, 92--96.
+		
+		\bibitem{vidyamurthy2004} Vidyamurthy, G. (2004). \emph{Pairs Trading: Quantitative Methods and Analysis}. Wiley.
+		
+	\end{thebibliography}
+	\endgroup
+	
+\end{document}
